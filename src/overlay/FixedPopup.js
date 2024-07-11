@@ -33,6 +33,7 @@ import {ol_coordinate_dist2d} from "../geom/GeomUtils.js";
  *	@param {Number|Array<number>} options.offsetBox an offset box
  *	@param {ol.OverlayPositioning | string | undefined} options.positioning 
  *		the 'auto' positioning var the popup choose its positioning to stay on the map.
+ *  @param {boolean} options.fixedPosition popup is fixed on the map, default false.
  * @api stable
  */
 var ol_Overlay_FixedPopup = class olOverlayFixedPopup extends ol_Overlay_Popup {
@@ -48,6 +49,7 @@ var ol_Overlay_FixedPopup = class olOverlayFixedPopup extends ol_Overlay_Popup {
     // Canvas for drawing inks
     var canvas = document.createElement('canvas')
 
+    this._coord = null;
     this._overlay = new ol_layer_Image({
       source: new ol_source_ImageCanvas({
         canvasFunction: function (extent, res, ratio, size) {
@@ -161,7 +163,7 @@ var ol_Overlay_FixedPopup = class olOverlayFixedPopup extends ol_Overlay_Popup {
         }
       }
       pointerEvents[e.pointerId] = e
-      pixelPosition = this._pixel
+      pixelPosition = this._pixel || this.getMap().getPixelFromCoordinate(this.getPosition())
       rotIni = this.get('rotation') || 0
       scaleIni = this.get('scale') || 1
       distIni = distance(pointerEvents)
@@ -241,18 +243,24 @@ var ol_Overlay_FixedPopup = class olOverlayFixedPopup extends ol_Overlay_Popup {
    * @private
    */
   updatePixelPosition() {
-    var map = this.getMap()
-    var position = this.getPosition()
+    const map = this.getMap()
+    const position = this.getPosition()
     if (!map || !map.isRendered() || !position) {
       this.setVisible(false)
       return
     }
+    const mapSize = map.getSize();
     if (!this._pixel) {
-      this._pixel = map.getPixelFromCoordinate(position)
-      var mapSize = map.getSize()
-      this.updateRenderedPosition(this._pixel, mapSize)
-    } else {
-      this.setVisible(true)
+        const pixel = map.getPixelFromCoordinate(this.getPosition());
+        this.updateRenderedPosition(pixel, mapSize);
+        this._coord = map.getCoordinateFromPixel(pixel)
+    }
+    if (this._pixel && this.options.fixedPosition) {
+        // You need to find way to update the pixel position when the map is moved.
+        const pixel = map.getPixelFromCoordinate(this._coord);
+        super.updateRenderedPosition(pixel, mapSize);
+        this._pixel = pixel;
+        // console.log('map move', this._coords, pixel, mapSize);
     }
   }
   /** updateRenderedPosition
@@ -287,8 +295,10 @@ var ol_Overlay_FixedPopup = class olOverlayFixedPopup extends ol_Overlay_Popup {
       else
         pix[0] = mapSize[0] / 2 + pix[0]
     }
-    if (pix)
+    if (pix) {
       this._pixel = pix
+      this._coord = map.getCoordinateFromPixel(pix)
+    }
     if (map && map.getTargetElement() && this._pixel) {
       this.updateRenderedPosition(this._pixel, mapSize)
       // Prevent outside
@@ -309,7 +319,7 @@ var ol_Overlay_FixedPopup = class olOverlayFixedPopup extends ol_Overlay_Popup {
         this._pixel[1] = this._pixel[1] + rmap.top - r.top + rmap.height - r.height
         outside = true
       }
-      if (outside)
+      if (outside && !this.options.fixedPosition)
         this.updateRenderedPosition(this._pixel, mapSize)
       this._overlay.changed()
     }
@@ -369,6 +379,14 @@ var ol_Overlay_FixedPopup = class olOverlayFixedPopup extends ol_Overlay_Popup {
   setLinkStyle(style) {
     this._style = style
     this._overlay.changed()
+  }
+  /**
+   * Set fixed on map
+   */
+  setFixedPosition(isFixed) {
+    this.options.fixedPosition = isFixed
+    this._coord = isFixed ? this.getMap().getCoordinateFromPixel(this._pixel) : null
+    this.setPixelPosition()
   }
   /** Get link style
    * @return {ol.style.Style} style

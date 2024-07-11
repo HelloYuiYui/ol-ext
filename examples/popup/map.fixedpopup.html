@@ -140,6 +140,9 @@
     <br />
     <input id="cb" type="checkbox" checked onchange="popup.setClosebox(this.checked);" />
     <label for="cb">hasclosebox</label>
+    <br />
+    <input id="fixed" type="checkbox" checked onchange="popup.setFixedPosition(this.checked);" />
+    <label for="cb">fixed on map</label>
   </div>
   <p>Click on the points to show a popup ! (shift+click for a second one)</p>
   
@@ -151,12 +154,8 @@
   var popup = new ol.Overlay.FixedPopup ({
     popupClass: "default", //"tooltips", "warning" "black" "default", "tips", "shadow",
     // anim: true,
-    closeBox: true
-  });
-  var popup2 = new ol.Overlay.FixedPopup ({
-    popupClass: "default", //"tooltips", "warning" "black" "default", "tips", "shadow",
-    // anim: true,
-    closeBox: true
+    closeBox: true,
+    fixedPosition: true,
   });
     
   // The map
@@ -167,7 +166,7 @@
       center: [166326, 5992663]
     }),
     layers: layers,
-    overlays: [popup, popup2]
+    overlays: [popup]
   });
 
   // GeoJSON layer
@@ -196,15 +195,10 @@
     content += "<img src='" + '//wsrv.nl/?url=' + feature.get("img") + "'/>";
     content += feature.get("text");
     content += '<br/><i>powered by <a href="https://github.com/Viglino/ol-ext" target="ol">ol-ext</a></i>';
-    if (select.getFeatures().getLength()>1) {
-      popup2.show(feature.getGeometry().getFirstCoordinate(), content); 
-    } else {
-      popup.show(feature.getGeometry().getFirstCoordinate(), content); 
-    }
+    popup.show(feature.getGeometry().getFirstCoordinate(), content);
   });
   select.getFeatures().on(['remove'], function(e) {
     popup.hide(); 
-    popup2.hide(); 
   })
 
   function setStyle(st) {
